@@ -127,6 +127,18 @@ def main():
     if len(errors) == len(SOURCES):
         notify("⚠️ 監控異常", "所有來源都抓取失敗，請確認網址是否還有效。", color=0xE67E22)
 
+        # 每月心跳：讓你知道腳本還活著
+    from datetime import datetime, timezone
+    this_month = datetime.now(timezone.utc).strftime("%Y-%m")
+    if state.get("_heartbeat") != this_month:
+        ok = len(SOURCES) - len(errors)
+        notify(
+            "💤 監控運作中",
+            f"{this_month} 月報：{ok}/{len(SOURCES)} 個來源正常，長岡尚未開賣。",
+            color=0x95A5A6,
+        )
+        state["_heartbeat"] = this_month
+    
     STATE_FILE.write_text(
         json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8"
     )
