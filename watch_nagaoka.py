@@ -18,7 +18,7 @@ SOURCES = [
     ("官網 飯店列表", "https://www.toyoko-inn.com/hotel_list/"),
 ]
 
-KEYWORDS = ["東横"]
+KEYWORDS = ["長岡駅前", "長岡駅", "長岡"]
 BOOKING_SIGNALS = ["予約開始", "予約受付", "宿泊予約", "オープン"]
 
 STATE_FILE = Path("state_nagaoka.json")
