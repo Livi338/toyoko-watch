@@ -89,7 +89,7 @@ def main():
         try:
             r = requests.get(url, headers=HEADERS, timeout=30)
             r.raise_for_status()
-            text = to_text(r.text)
+            text = to_text(r.text).replace("長岡京", "")
         except Exception as e:
             log(f"❌ {name}: {e}")
             errors.append(name)
