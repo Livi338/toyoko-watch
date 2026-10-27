@@ -14,7 +14,6 @@ import requests
 
 SOURCES = [
     ("東橫INN 企業新聞", "https://www.toyoko-inn.co.jp/news/"),
-    ("官網 新潟縣分館列表", "https://www.toyoko-inn.com/search/area/niigata/"),
     ("官網 飯店列表", "https://www.toyoko-inn.com/hotel_list/"),
 ]
 
