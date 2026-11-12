@@ -19,14 +19,14 @@ body:
     id: checkin
     attributes:
       label: 入住日
-      placeholder: 2026-12-12
+      placeholder: "2026-12-12"
     validations:
       required: true
   - type: input
     id: checkout
     attributes:
       label: 退房日
-      placeholder: 2026-12-15
+      placeholder: "2026-12-15"
     validations:
       required: true
   - type: textarea
