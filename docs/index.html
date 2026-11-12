@@ -93,7 +93,11 @@ td.na{background:transparent;color:var(--no);border:1px dashed var(--line)}
 .hotel-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
 .hotel-row .rank{font-size:11px;color:var(--ink-2);width:64px;flex:none;white-space:nowrap}
 .hotel-row input{flex:1;min-width:0}
-.hotel-row button{flex:none;width:34px;height:38px;border:1px solid var(--line);background:var(--surface);border-radius:8px;cursor:pointer}
+.hotel-row button{flex:none;width:38px;height:38px;border:1px solid var(--line);background:var(--surface);border-radius:8px;cursor:pointer;
+  display:grid;place-items:center;padding:0;line-height:0;color:var(--ink)}
+.hotel-row button svg{display:block;pointer-events:none}
+.hotel-row button[data-del]{color:var(--warn)}
+.hotel-row input{height:38px}
 .sheet-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));
   background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:20;display:none;max-width:90vw}
@@ -387,8 +391,8 @@ function hotelRow(v = "") {
   const d = document.createElement("div");
   d.className = "hotel-row";
   d.innerHTML = `<span class="rank"></span><input list="hotelNames" value="${esc(v)}" placeholder="例：日本橋人形町">
-    <button type="button" data-up aria-label="上移">↑</button><button type="button" data-down aria-label="下移">↓</button>
-    <button type="button" data-del aria-label="刪除">✕</button>`;
+    <button type="button" data-up aria-label="上移"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg></button><button type="button" data-down aria-label="下移"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></button>
+    <button type="button" data-del aria-label="刪除"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></button>`;
   return d;
 }
 function renumber() {
