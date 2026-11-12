@@ -47,6 +47,8 @@ TRIPS = [
         },
         "dates": ["2026-12-12", "2026-12-13", "2026-12-14"],
         "people": 1,
+        # 至少要有一間能「連住幾晚」才通知；設 1 = 零散單晚也通知
+        "min_streak": 1,
     },
 ]
 
@@ -119,6 +121,81 @@ def classify(text):
     return "unknown"
 
 
+def streaks(avail_dates, trip_dates):
+    """把有房的日期切成連續區段，回傳 [(起, 迄), ...]，長的排前面。"""
+    runs, cur = [], []
+    for d in sorted(trip_dates):
+        if d in avail_dates:
+            cur.append(d)
+        elif cur:
+            runs.append(cur)
+            cur = []
+    if cur:
+        runs.append(cur)
+    return sorted(((r[0], r[-1]) for r in runs),
+                  key=lambda r: -(date.fromisoformat(r[1]) - date.fromisoformat(r[0])).days)
+
+
+def nights(run):
+    return (date.fromisoformat(run[1]) - date.fromisoformat(run[0])).days + 1
+
+
+def md(d):
+    x = date.fromisoformat(d)
+    return f"{x.month}/{x.day}"
+
+
+def summarize(trip, avail, people, today):
+    """avail: {hotel_cd: set(有房的入住日)} → (標題, 內文, 最長連住晚數)"""
+    dates = [d for d in trip["dates"] if date.fromisoformat(d) >= today]
+    full, multi, single = [], [], []
+    best = 0
+    first_choice_full = False
+    for rank, (cd, name) in enumerate(trip["hotels"].items()):
+        label = "⭐第一志願" if rank == 0 else f"備案{rank}"
+        for run in streaks(avail.get(cd, set()), dates):
+            n = nights(run)
+            best = max(best, n)
+            end = (date.fromisoformat(run[1]) + timedelta(days=1)).isoformat()
+            url = SEARCH_URL.format(hotel=cd, people=people, room=ROOMS,
+                                    smoking=SMOKING, start=run[0], end=end)
+            span = md(run[0]) if n == 1 else f"{md(run[0])}–{md(run[1])}"
+            line = (f"**{name.replace('東橫INN', '')}**（{label}）"
+                    f" {span}（{n} 晚）\n{url}")
+            item = (-n, rank, line)   # 先比連住晚數，同晚數再比志願
+            if n == len(dates):
+                full.append(item)
+                first_choice_full |= rank == 0
+            elif n > 1:
+                multi.append(item)
+            else:
+                single.append(item)
+    full, multi, single = ([x[2] for x in sorted(g)] for g in (full, multi, single))
+
+    covered = set().union(*avail.values()) if avail else set()
+    gaps = [md(d) for d in dates if d not in covered]
+
+    parts = []
+    if full:
+        parts.append(f"🟢 **同一間住滿 {len(dates)} 晚，不用搬家**\n" + "\n".join(full))
+    if multi:
+        parts.append("🟡 **可連住多晚（搭配其他飯店，換一次房）**\n" + "\n".join(multi))
+    if single:
+        parts.append("⚪ **單晚**\n" + "\n".join(single))
+    if gaps:
+        parts.append("⛔ 目前四間都沒房的晚上：" + "、".join(gaps))
+
+    if first_choice_full:
+        title = f"🟢⭐ {trip['name']}：第一志願可一次訂齊 {len(dates)} 晚！"
+    elif full:
+        title = f"🟢 {trip['name']}：有飯店可一次訂齊 {len(dates)} 晚！"
+    elif best > 1:
+        title = f"🟡 {trip['name']}：最多可連住 {best} 晚"
+    else:
+        title = f"⚪ {trip['name']}：只有零散單晚"
+    return title, "\n\n".join(parts), best
+
+
 def check_one(page, url, tag):
     page.goto(url, wait_until="networkidle", timeout=TIMEOUT_MS)
     try:
@@ -143,7 +220,7 @@ def main():
 
     state = load_state()
     today = datetime.now(JST).date()
-    hits = {}          # 行程名稱 -> [(飯店, 日期, 網址)]
+    changed = set()    # 有新空房出現的行程
     unknowns, total = [], 0
 
     with sync_playwright() as p:
@@ -176,7 +253,7 @@ def main():
                     log(f"[{trip['name']}] {name} {checkin} 入住: {status}")
 
                     if status == "available" and state.get(key) != "available":
-                        hits.setdefault(trip["name"], []).append((name, checkin, url))
+                        changed.add(trip["name"])
                     if status == "unknown":
                         unknowns.append(key)
                     else:
@@ -187,9 +264,20 @@ def main():
         browser.close()
 
     if not PROBE:
-        for trip_name, items in hits.items():
-            body = "\n\n".join(f"**{n}** — {c} 入住\n{u}" for n, c, u in items)
-            notify(f"🏨 {trip_name} 有空房了！快去訂！", body, color=0x2ECC71)
+        for trip in TRIPS:
+            if trip["name"] not in changed:
+                continue
+            # 用最新狀態整理出「這趟目前所有有房的組合」，不只列新出現的
+            avail = {}
+            for cd in trip["hotels"]:
+                ok = {d for d in trip["dates"] if state.get(f"{cd}:{d}") == "available"}
+                if ok:
+                    avail[cd] = ok
+            title, body, best = summarize(trip, avail, trip.get("people", 1), today)
+            if best >= trip.get("min_streak", 1):
+                color = 0x2ECC71 if title.startswith("🟢") else (
+                    0xF1C40F if title.startswith("🟡") else 0x95A5A6)
+                notify(title, body, color=color)
 
         if total and len(unknowns) == total:
             if state.get("_warned") != "yes":
