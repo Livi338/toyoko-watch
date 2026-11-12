@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="空房監控">
+<meta name="theme-color" content="#1f3a5f">
+<title>空房監控</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f3a5f'/%3E%3Cpath d='M14 46V22l18-10 18 10v24' fill='none' stroke='white' stroke-width='5' stroke-linejoin='round'/%3E%3Crect x='26' y='32' width='12' height='14' rx='2' fill='%23f2b544'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%231f3a5f'/%3E%3Cpath d='M14 46V22l18-10 18 10v24' fill='none' stroke='white' stroke-width='5' stroke-linejoin='round'/%3E%3Crect x='26' y='32' width='12' height='14' rx='2' fill='%23f2b544'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fffdf8; --surface-2:#efeadf; --ink:#1d2430; --ink-2:#5b6472;
+  --line:#ddd5c6; --brand:#1f3a5f; --brand-ink:#fff; --accent:#f2b544;
+  --ok:#2e7d4f; --ok-bg:#dff1e5; --no:#8a8f98; --no-bg:#ece8e0; --warn:#b4541c; --warn-bg:#fbe6d6;
+  --radius:14px; --shadow:0 1px 2px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#12161c; --surface:#1a2029; --surface-2:#232b36; --ink:#e9edf2; --ink-2:#9aa4b1;
+    --line:#2f3946; --brand:#7fa7d9; --brand-ink:#0d1520; --accent:#f2b544;
+    --ok:#6fd39a; --ok-bg:#1d3a2a; --no:#6d7684; --no-bg:#222a34; --warn:#f0a070; --warn-bg:#3a2619;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px calc(96px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(14px + env(safe-area-inset-top)) 0 10px;
+  display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+header h1{font-size:20px;margin:0;letter-spacing:.02em}
+header .sub{font-size:12px;color:var(--ink-2)}
+header .grow{flex:1}
+.icon-btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;width:40px;height:40px;
+  display:grid;place-items:center;cursor:pointer}
+.icon-btn:active{transform:scale(.96)}
+.fab{position:fixed;right:max(16px,calc(50% - 364px));bottom:calc(20px + env(safe-area-inset-bottom));
+  background:var(--brand);color:var(--brand-ink);border:0;border-radius:999px;padding:14px 20px;
+  font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.2);cursor:pointer}
+.banner{margin:14px 0;padding:12px 14px;border-radius:var(--radius);background:var(--warn-bg);color:var(--warn);font-size:14px}
+.empty{color:var(--ink-2);text-align:center;padding:48px 16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);
+  margin:14px 0;overflow:hidden}
+.card-h{padding:14px 16px 8px;display:flex;gap:10px;align-items:flex-start}
+.card-h h2{margin:0;font-size:18px;line-height:1.3}
+.card-h .dates{color:var(--ink-2);font-size:14px;margin-top:2px}
+.badge{font-size:12px;padding:3px 8px;border-radius:999px;white-space:nowrap;font-weight:600}
+.b-ok{background:var(--ok-bg);color:var(--ok)} .b-err{background:var(--warn-bg);color:var(--warn)}
+.b-wait{background:var(--surface-2);color:var(--ink-2)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 10px}
+.chip{font-size:12px;background:var(--surface-2);color:var(--ink-2);border-radius:999px;padding:3px 9px}
+.errbox{margin:0 16px 12px;padding:10px 12px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-size:13px;white-space:pre-wrap}
+.grid{overflow-x:auto;padding:0 16px 12px}
+table{border-collapse:separate;border-spacing:4px;width:100%;font-size:13px}
+th{font-weight:600;color:var(--ink-2);text-align:center;white-space:nowrap;padding:2px 4px}
+th.h{text-align:left;color:var(--ink);font-weight:600;min-width:92px;line-height:1.3}
+th small.wd{display:block;font-weight:400;font-size:11px}
+th.h small{display:block;font-weight:400;color:var(--ink-2);font-size:11px}
+td{text-align:center;border-radius:8px;padding:8px 2px;min-width:46px}
+td.ok{background:var(--ok-bg);color:var(--ok);font-weight:700}
+td.ok a{color:inherit;text-decoration:none;display:block}
+td.ok small{display:block;font-weight:400;font-size:10px;line-height:1.2}
+td.no{background:var(--no-bg);color:var(--no)}
+td.na{background:transparent;color:var(--no);border:1px dashed var(--line)}
+.card-f{display:flex;gap:8px;padding:10px 16px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 14px;cursor:pointer;font-size:14px}
+.btn.primary{background:var(--brand);color:var(--brand-ink);border-color:transparent;font-weight:700}
+.btn.danger{color:var(--warn)}
+.btn:disabled{opacity:.5}
+.btn.link{border:0;background:none;color:var(--ink-2);padding:8px 4px;margin-left:auto;text-decoration:none}
+.legend{font-size:12px;color:var(--ink-2);padding:0 16px 10px;display:flex;gap:12px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+/* sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:10;display:none}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:11;background:var(--surface);border-radius:18px 18px 0 0;
+  max-height:92vh;overflow:auto;padding:16px 16px calc(20px + env(safe-area-inset-bottom));display:none;
+  max-width:760px;margin:0 auto}
+.sheet.open,.sheet-bg.open{display:block}
+.sheet h3{margin:4px 0 14px;font-size:18px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;color:var(--ink-2);margin-bottom:5px;font-weight:600}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hint{font-size:12px;color:var(--ink-2);margin-top:5px}
+.hotel-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.hotel-row .rank{font-size:11px;color:var(--ink-2);width:64px;flex:none;white-space:nowrap}
+.hotel-row input{flex:1;min-width:0}
+.hotel-row button{flex:none;width:34px;height:38px;border:1px solid var(--line);background:var(--surface);border-radius:8px;cursor:pointer}
+.sheet-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));
+  background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:20;display:none;max-width:90vw}
+.confirm-row{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="grow">
+      <h1>空房監控</h1>
+      <div class="sub" id="sub">載入中…</div>
+    </div>
+    <button class="icon-btn" id="btnRun" title="立即檢查" aria-label="立即檢查">⚡</button>
+    <button class="icon-btn" id="btnReload" title="重新整理" aria-label="重新整理">⟳</button>
+    <button class="icon-btn" id="btnSettings" title="設定" aria-label="設定">⚙</button>
+  </header>
+  <div id="banner"></div>
+  <div id="list"></div>
+</div>
+<button class="fab" id="btnNew">＋ 新增行程</button>
+
+<div class="sheet-bg" id="sheetBg"></div>
+
+<!-- 行程表單 -->
+<div class="sheet" id="tripSheet" role="dialog" aria-modal="true">
+  <h3 id="tripSheetTitle">新增行程</h3>
+  <div class="field"><label for="fName">旅遊名稱</label><input id="fName" placeholder="東京 12月"></div>
+  <div class="row2">
+    <div class="field"><label for="fIn">入住日</label><input id="fIn" type="date"></div>
+    <div class="field"><label for="fOut">退房日</label><input id="fOut" type="date"></div>
+  </div>
+  <div class="field">
+    <label>飯店（第一個是第一志願）</label>
+    <div id="hotelRows"></div>
+    <button class="btn" id="btnAddHotel" type="button">＋ 加一間</button>
+    <div class="hint">輸入時會出現飯店名稱提示；也可以直接填 5 碼代碼。</div>
+    <datalist id="hotelNames"></datalist>
+  </div>
+  <div class="row2">
+    <div class="field"><label for="fPeople">總人數</label>
+      <select id="fPeople"><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+    <div class="field"><label for="fRooms">房間數</label>
+      <select id="fRooms"><option>1</option><option>2</option><option>3</option></select></div>
+  </div>
+  <div class="field"><label for="fType">房型</label>
+    <select id="fType">
+      <option>單人房（含經濟單人房）</option><option>單人房（不含經濟單人房）</option><option>不限房型</option>
+    </select></div>
+  <div class="field"><label for="fWhen">什麼時候通知</label>
+    <select id="fWhen">
+      <option>任何一晚有房就通知</option><option>至少能連住 2 晚才通知</option><option>整段都能同一間才通知</option>
+    </select></div>
+  <div id="formErr" class="errbox" style="display:none;margin:0 0 12px"></div>
+  <div class="sheet-actions">
+    <button class="btn" data-close type="button">取消</button>
+    <button class="btn primary" id="btnSave" type="button">儲存</button>
+  </div>
+</div>
+
+<!-- 設定 -->
+<div class="sheet" id="setSheet" role="dialog" aria-modal="true">
+  <h3>設定</h3>
+  <div class="field"><label for="sToken">GitHub 存取金鑰（Fine-grained token）</label>
+    <input id="sToken" type="password" autocomplete="off" placeholder="github_pat_…">
+    <div class="hint">只存在這台裝置的瀏覽器裡，不會傳到 GitHub 以外的地方。</div></div>
+  <div class="row2">
+    <div class="field"><label for="sOwner">帳號</label><input id="sOwner"></div>
+    <div class="field"><label for="sRepo">Repo</label><input id="sRepo"></div>
+  </div>
+  <div class="field"><label for="sWf">Workflow 檔名</label><input id="sWf"></div>
+  <div class="sheet-actions">
+    <button class="btn danger" id="btnForget" type="button">清除金鑰</button>
+    <button class="btn" data-close type="button">取消</button>
+    <button class="btn primary" id="btnSaveSet" type="button">儲存</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const LS = {
+  get(k, d){ try { const v = localStorage.getItem("tw_" + k); return v === null ? d : v; } catch { return d; } },
+  set(k, v){ try { localStorage.setItem("tw_" + k, v); } catch {} },
+  del(k){ try { localStorage.removeItem("tw_" + k); } catch {} },
+};
+const cfg = () => ({
+  token: LS.get("token", ""), owner: LS.get("owner", "Livi338"),
+  repo: LS.get("repo", "toyoko-watch"), wf: LS.get("wf", "niigata.yml"),
+});
+const SEARCH = "https://www.toyoko-inn.com/china/search/result/room_plan/?hotel={h}&people={p}&room={r}&smoking=noSmoking&start={s}&end={e}";
+const WD = "日一二三四五六";
+
+let STATE = {}, HOTELS = {}, TRIPS = [], editing = null;
+
+/* ── GitHub API ─────────────────────────────── */
+async function gh(path, opt = {}) {
+  const c = cfg();
+  const res = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}${path}`, {
+    ...opt,
+    headers: { "Accept": "application/vnd.github+json",
+               ...(c.token ? { "Authorization": `Bearer ${c.token}` } : {}),
+               ...(opt.headers || {}) },
+  });
+  if (!res.ok) {
+    const msg = { 401: "金鑰無效或已過期", 403: "金鑰權限不足", 404: "找不到 repo 或檔案" }[res.status] || `錯誤 ${res.status}`;
+    throw new Error(msg);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+/* ── 解析 Issue 表單 ───────────────────────── */
+function parseForm(body) {
+  const f = {}, parts = (body || "").split(/^###\s+(.+?)\s*$/m);
+  for (let i = 1; i < parts.length - 1; i += 2) {
+    const v = parts[i + 1].trim();
+    f[parts[i].trim()] = v === "_No response_" ? "" : v;
+  }
+  return f;
+}
+function buildBody(t) {
+  const sec = (k, v) => `### ${k}\n\n${v}\n`;
+  return [
+    sec("旅遊名稱", t.name), sec("入住日", t.checkin), sec("退房日", t.checkout),
+    sec("飯店（依志願排序）", t.hotels.join("\n")), sec("總人數", t.people), sec("房間數", t.rooms),
+    sec("房型", t.type), sec("什麼時候通知", t.when),
+  ].join("\n");
+}
+
+/* ── 飯店名稱比對（與監控腳本相同規則） ───── */
+const TR = {"橫":"横","站":"駅","驛":"駅","濱":"浜","瀉":"潟","櫻":"桜","廣":"広","藏":"蔵","澤":"沢","邊":"辺",
+  "國":"国","關":"関","帶":"帯","條":"条","號":"号","團":"団","實":"実","濟":"済","內":"内","惠":"恵","黑":"黒",
+  "髙":"高","峯":"峰","鄉":"郷","Ａ":"A","Ｂ":"B","１":"1","２":"2","３":"3","４":"4"};
+const norm = s => [...s].map(ch => TR[ch] || ch).join("")
+  .replace(/東横\s*INN|東横イン|TOYOKO\s*INN/gi, "").replace(/[\s・·()（）「」]/g, "").toUpperCase();
+function resolve(q) {
+  q = q.trim(); if (!q) return null;
+  if (/^\d{5}$/.test(q)) return HOTELS[q] ? q : null;
+  const nq = norm(q), list = Object.entries(HOTELS);
+  const ex = list.filter(([, ns]) => ns.some(n => norm(n) === nq));
+  if (ex.length === 1) return ex[0][0];
+  const pt = list.filter(([, ns]) => nq && ns.some(n => norm(n).includes(nq)));
+  return pt.length === 1 ? pt[0][0] : null;
+}
+const shortName = cd => (HOTELS[cd]?.[0] || cd).replace(/^東[横橫]INN\s*/, "");
+
+/* ── 日期工具 ──────────────────────────────── */
+const toD = s => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); };
+const iso = d => d.toISOString().slice(0, 10);
+const md = s => { const d = toD(s); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
+const mdw = s => `${md(s)}（${WD[toD(s).getUTCDay()]}）`;
+function nightsOf(ci, co) {
+  const out = []; if (!ci || !co) return out;
+  for (let d = toD(ci); d < toD(co); d = new Date(d.getTime() + 864e5)) out.push(iso(d));
+  return out;
+}
+function ago(t) {
+  const m = Math.round((Date.now() - new Date(t)) / 6e4);
+  return m < 1 ? "剛剛" : m < 60 ? `${m} 分鐘前` : m < 1440 ? `${Math.round(m / 60)} 小時前` : `${Math.round(m / 1440)} 天前`;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* ── 載入 ──────────────────────────────────── */
+async function load() {
+  const c = cfg();
+  $("#banner").innerHTML = "";
+  if (!c.token) {
+    $("#banner").innerHTML = `<div class="banner">還沒設定 GitHub 存取金鑰。點右上角 ⚙ 進入設定。</div>`;
+    $("#sub").textContent = `${c.owner}/${c.repo}`;
+  }
+  $("#list").innerHTML = `<div class="empty">載入中…</div>`;
+  try {
+    const [issues, stateRaw, commits] = await Promise.all([
+      gh("/issues?state=open&per_page=100"),
+      gh("/contents/state_niigata.json", { headers: { "Accept": "application/vnd.github.raw+json" } }).catch(() => ({})),
+      gh("/commits?path=state_niigata.json&per_page=1").catch(() => []),
+    ]);
+    STATE = stateRaw || {};
+    HOTELS = STATE._hotels?.list || {};
+    $("#hotelNames").innerHTML = Object.values(HOTELS)
+      .map(ns => `<option value="${esc(ns[0].replace(/^東[横橫]INN\s*/, ""))}">`).join("");
+    const last = commits[0]?.commit?.committer?.date;
+    $("#sub").textContent = last ? `最後檢查：${ago(last)}` : `${c.owner}/${c.repo}`;
+
+    const mine = issues.filter(i => !i.pull_request && i.user.login.toLowerCase() === c.owner.toLowerCase()
+                                    && (i.body || "").includes("### 旅遊名稱"));
+    TRIPS = await Promise.all(mine.map(async i => {
+      const f = parseForm(i.body);
+      let bot = null;
+      try {
+        const cm = await gh(`/issues/${i.number}/comments?per_page=100`);
+        bot = cm.filter(x => x.user.type === "Bot").pop() || null;
+      } catch {}
+      return { issue: i, f, bot };
+    }));
+    TRIPS.sort((a, b) => (a.f["入住日"] || "").localeCompare(b.f["入住日"] || ""));
+    render();
+  } catch (e) {
+    $("#list").innerHTML = `<div class="banner">讀取失敗：${esc(e.message)}。請到 ⚙ 設定確認金鑰與 repo 名稱。</div>`;
+  }
+}
+
+function render() {
+  if (!TRIPS.length) {
+    $("#list").innerHTML = `<div class="empty">目前沒有監控中的行程。<br>按右下角「＋ 新增行程」開始。</div>`;
+    return;
+  }
+  $("#list").innerHTML = TRIPS.map(cardHTML).join("") +
+    `<div class="legend"><span><i class="dot" style="background:var(--ok-bg);border:1px solid var(--ok)"></i>有房（點擊開訂房頁）</span>
+     <span><i class="dot" style="background:var(--no-bg)"></i>滿房</span><span><i class="dot" style="border:1px dashed var(--line)"></i>尚未查詢</span></div>`;
+}
+
+function cardHTML(t) {
+  const { issue: i, f, bot } = t, n = i.number;
+  const ci = f["入住日"], co = f["退房日"], nights = nightsOf(ci, co);
+  const lines = (f["飯店（依志願排序）"] || "").split("\n").map(s => s.trim()).filter(Boolean);
+  const codes = [];
+  lines.forEach(l => { const cd = resolve(l); if (cd && !codes.includes(cd)) codes.push(cd); });
+  const people = f["總人數"] || "1", rooms = f["房間數"] || "1";
+
+  let badge = `<span class="badge b-wait">等待確認</span>`, err = "";
+  if (bot && new Date(bot.created_at) >= new Date(i.updated_at) - 5000) {
+    if (bot.body.startsWith("✅")) badge = `<span class="badge b-ok">監控中</span>`;
+    else if (bot.body.startsWith("❌")) {
+      badge = `<span class="badge b-err">設定有誤</span>`;
+      err = `<div class="errbox">${esc(bot.body.replace(/\*\*/g, "").replace(/`/g, ""))}</div>`;
+    }
+  } else if (bot?.body.startsWith("✅")) badge = `<span class="badge b-ok">監控中</span>`;
+  if (bot?.body.includes("⚠️")) {
+    const w = bot.body.split("⚠️")[1].split("\n\n有房時")[0];
+    err += `<div class="errbox">⚠️${esc(w.replace(/\*\*/g, "").replace(/`/g, ""))}</div>`;
+  }
+
+  const today = iso(new Date(Date.now() + 9 * 3600e3));
+  const head = nights.map(d => `<th>${md(d)}<small class="wd">（${WD[toD(d).getUTCDay()]}）</small></th>`).join("");
+  const rows = (codes.length ? codes : []).map((cd, r) => {
+    const label = r === 0 ? "⭐ 第一志願" : `備案 ${r}`;
+    const cells = nights.map(d => {
+      if (d < today) return `<td class="na">—</td>`;
+      const st = STATE[`${n}:${cd}:${d}`];
+      if (st === "available") {
+        const kinds = (STATE._types?.[`${n}:${cd}:${d}`] || []).join("、");
+        const end = iso(new Date(toD(d).getTime() + 864e5));
+        const url = SEARCH.replace("{h}", cd).replace("{p}", people).replace("{r}", rooms).replace("{s}", d).replace("{e}", end);
+        return `<td class="ok"><a href="${url}" target="_blank" rel="noopener">有房${kinds ? `<small>${esc(kinds)}</small>` : ""}</a></td>`;
+      }
+      if (st === "soldout") return `<td class="no">滿</td>`;
+      return `<td class="na">?</td>`;
+    }).join("");
+    return `<tr><th class="h">${esc(shortName(cd))}<small>${label}</small></th>${cells}</tr>`;
+  }).join("");
+  const grid = codes.length
+    ? `<div class="grid"><table><tr><th></th>${head}</tr>${rows}</table></div>`
+    : `<div class="errbox">飯店名稱還對應不到（可能監控尚未跑過一次），請稍後按 ⟳。</div>`;
+
+  return `<section class="card">
+    <div class="card-h"><div style="flex:1">
+      <h2>${esc(f["旅遊名稱"] || `行程 #${n}`)}</h2>
+      <div class="dates">${ci ? mdw(ci) : "?"} → ${co ? mdw(co) : "?"}・${nights.length} 晚</div>
+    </div>${badge}</div>
+    <div class="chips"><span class="chip">${esc(people)} 人・${esc(rooms)} 間</span>
+      <span class="chip">${esc(f["房型"] || "")}</span><span class="chip">${esc(f["什麼時候通知"] || "")}</span></div>
+    ${err}${grid}
+    <div class="card-f" id="foot-${n}">
+      <button class="btn" data-edit="${n}">編輯</button>
+      <button class="btn danger" data-stop="${n}">停止監控</button>
+      <a class="btn link" href="${esc(i.html_url)}" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </section>`;
+}
+
+/* ── 表單 ──────────────────────────────────── */
+function hotelRow(v = "") {
+  const d = document.createElement("div");
+  d.className = "hotel-row";
+  d.innerHTML = `<span class="rank"></span><input list="hotelNames" value="${esc(v)}" placeholder="例：日本橋人形町">
+    <button type="button" data-up aria-label="上移">↑</button><button type="button" data-down aria-label="下移">↓</button>
+    <button type="button" data-del aria-label="刪除">✕</button>`;
+  return d;
+}
+function renumber() {
+  [...$("#hotelRows").children].forEach((r, i) => r.querySelector(".rank").textContent = i === 0 ? "⭐第一志願" : `備案 ${i}`);
+}
+function openSheet(id) { $("#sheetBg").classList.add("open"); $(id).classList.add("open"); }
+function closeSheets() { document.querySelectorAll(".sheet,.sheet-bg").forEach(e => e.classList.remove("open")); }
+
+function openTrip(num) {
+  editing = num ?? null;
+  const t = TRIPS.find(x => x.issue.number === num);
+  const f = t?.f || {};
+  $("#tripSheetTitle").textContent = t ? "編輯行程" : "新增行程";
+  $("#fName").value = f["旅遊名稱"] || "";
+  $("#fIn").value = f["入住日"] || "";
+  $("#fOut").value = f["退房日"] || "";
+  $("#fPeople").value = f["總人數"] || "1";
+  $("#fRooms").value = f["房間數"] || "1";
+  $("#fType").value = f["房型"] || "單人房（含經濟單人房）";
+  $("#fWhen").value = f["什麼時候通知"] || "任何一晚有房就通知";
+  $("#hotelRows").innerHTML = "";
+  const hs = (f["飯店（依志願排序）"] || "").split("\n").map(s => s.trim()).filter(Boolean);
+  (hs.length ? hs : [""]).forEach(h => $("#hotelRows").appendChild(hotelRow(h)));
+  renumber();
+  $("#formErr").style.display = "none";
+  openSheet("#tripSheet");
+}
+
+async function saveTrip() {
+  const t = {
+    name: $("#fName").value.trim(), checkin: $("#fIn").value, checkout: $("#fOut").value,
+    hotels: [...$("#hotelRows").querySelectorAll("input")].map(i => i.value.trim()).filter(Boolean),
+    people: $("#fPeople").value, rooms: $("#fRooms").value, type: $("#fType").value, when: $("#fWhen").value,
+  };
+  const errs = [];
+  if (!t.name) errs.push("請填旅遊名稱");
+  if (!t.checkin || !t.checkout) errs.push("請選入住日和退房日");
+  else if (t.checkout <= t.checkin) errs.push("退房日必須晚於入住日");
+  if (!t.hotels.length) errs.push("至少要填一間飯店");
+  if (Object.keys(HOTELS).length) {
+    const bad = t.hotels.filter(h => !resolve(h));
+    if (bad.length) errs.push(`這些飯店對應不到或符合多間：${bad.join("、")}（請從提示清單選，或填 5 碼代碼）`);
+  }
+  if (errs.length) { $("#formErr").textContent = errs.join("\n"); $("#formErr").style.display = "block"; return; }
+
+  $("#btnSave").disabled = true;
+  try {
+    const body = buildBody(t);
+    if (editing) await gh(`/issues/${editing}`, { method: "PATCH", body: JSON.stringify({ title: `[監控] ${t.name}`, body }) });
+    else await gh("/issues", { method: "POST", body: JSON.stringify({ title: `[監控] ${t.name}`, body }) });
+    closeSheets();
+    toast("已儲存，約 3 分鐘後會開始監控");
+    setTimeout(load, 1500);
+  } catch (e) {
+    $("#formErr").textContent = `儲存失敗：${e.message}`; $("#formErr").style.display = "block";
+  } finally { $("#btnSave").disabled = false; }
+}
+
+function askStop(n) {
+  const foot = $(`#foot-${n}`);
+  foot.innerHTML = `<div class="confirm-row">確定停止監控這趟行程？</div>
+    <button class="btn" data-cancel>取消</button><button class="btn primary" data-stopyes="${n}">停止</button>`;
+}
+async function stopTrip(n) {
+  try {
+    await gh(`/issues/${n}`, { method: "PATCH", body: JSON.stringify({ state: "closed", state_reason: "completed" }) });
+    toast("已停止監控"); load();
+  } catch (e) { toast(`失敗：${e.message}`); }
+}
+async function runNow() {
+  try {
+    await gh(`/actions/workflows/${cfg().wf}/dispatches`, { method: "POST", body: JSON.stringify({ ref: "main" }) });
+    toast("已開始檢查，約 3 分鐘後按 ⟳ 看結果");
+  } catch (e) { toast(`無法觸發：${e.message}（金鑰需要 Actions 權限）`); }
+}
+
+let toastT;
+function toast(m) { const t = $("#toast"); t.textContent = m; t.style.display = "block"; clearTimeout(toastT); toastT = setTimeout(() => t.style.display = "none", 3500); }
+
+/* ── 事件 ──────────────────────────────────── */
+document.addEventListener("click", e => {
+  const b = e.target.closest("button,[data-close]"); if (!b) return;
+  if (b.matches("[data-close]") || b === $("#sheetBg")) closeSheets();
+  else if (b.dataset.edit) openTrip(+b.dataset.edit);
+  else if (b.dataset.stop) askStop(+b.dataset.stop);
+  else if (b.dataset.stopyes) stopTrip(+b.dataset.stopyes);
+  else if (b.matches("[data-cancel]")) render();
+  else if (b.matches("[data-up]")) { const r = b.parentElement; r.previousElementSibling && r.parentElement.insertBefore(r, r.previousElementSibling); renumber(); }
+  else if (b.matches("[data-down]")) { const r = b.parentElement; r.nextElementSibling && r.parentElement.insertBefore(r.nextElementSibling, r); renumber(); }
+  else if (b.matches("[data-del]")) { const p = b.parentElement.parentElement; if (p.children.length > 1) b.parentElement.remove(); else b.parentElement.querySelector("input").value = ""; renumber(); }
+});
+$("#sheetBg").addEventListener("click", closeSheets);
+$("#btnNew").onclick = () => openTrip(null);
+$("#btnAddHotel").onclick = () => { $("#hotelRows").appendChild(hotelRow()); renumber(); };
+$("#btnSave").onclick = saveTrip;
+$("#btnReload").onclick = load;
+$("#btnRun").onclick = runNow;
+$("#fIn").addEventListener("change", () => {
+  if ($("#fIn").value && (!$("#fOut").value || $("#fOut").value <= $("#fIn").value))
+    $("#fOut").value = iso(new Date(toD($("#fIn").value).getTime() + 864e5));
+});
+$("#btnSettings").onclick = () => {
+  const c = cfg(); $("#sToken").value = c.token; $("#sOwner").value = c.owner; $("#sRepo").value = c.repo; $("#sWf").value = c.wf;
+  openSheet("#setSheet");
+};
+$("#btnSaveSet").onclick = () => {
+  LS.set("token", $("#sToken").value.trim()); LS.set("owner", $("#sOwner").value.trim() || "Livi338");
+  LS.set("repo", $("#sRepo").value.trim() || "toyoko-watch"); LS.set("wf", $("#sWf").value.trim() || "niigata.yml");
+  closeSheets(); load();
+};
+$("#btnForget").onclick = () => { LS.del("token"); $("#sToken").value = ""; toast("已清除金鑰"); };
+document.addEventListener("visibilitychange", () => { if (!document.hidden && cfg().token) load(); });
+
+load();
+</script>
+</body>
+</html>
