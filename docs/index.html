@@ -35,7 +35,9 @@ header h1{font-size:20px;margin:0;letter-spacing:.02em}
 header .sub{font-size:12px;color:var(--ink-2)}
 header .grow{flex:1}
 .icon-btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;width:40px;height:40px;
-  display:grid;place-items:center;cursor:pointer}
+  display:grid;place-items:center;cursor:pointer;padding:0;line-height:0;color:var(--ink)}
+.icon-btn svg{display:block}
+#btnRun{color:var(--accent)}
 .icon-btn:active{transform:scale(.96)}
 .fab{position:fixed;right:max(16px,calc(50% - 364px));bottom:calc(20px + env(safe-area-inset-bottom));
   background:var(--brand);color:var(--brand-ink);border:0;border-radius:999px;padding:14px 20px;
@@ -102,9 +104,9 @@ td.na{background:transparent;color:var(--no);border:1px dashed var(--line)}
       <h1>空房監控</h1>
       <div class="sub" id="sub">載入中…</div>
     </div>
-    <button class="icon-btn" id="btnRun" title="立即檢查" aria-label="立即檢查">⚡</button>
-    <button class="icon-btn" id="btnReload" title="重新整理" aria-label="重新整理">⟳</button>
-    <button class="icon-btn" id="btnSettings" title="設定" aria-label="設定">⚙</button>
+    <button class="icon-btn" id="btnRun" title="立即檢查" aria-label="立即檢查"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 2 4.5 14h7l-1 8 9-12h-7l1-8z" fill="currentColor" stroke="none"/></svg></button>
+    <button class="icon-btn" id="btnReload" title="重新整理" aria-label="重新整理"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+    <button class="icon-btn" id="btnSettings" title="設定" aria-label="設定"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </header>
   <div id="banner"></div>
   <div id="list"></div>
@@ -189,12 +191,21 @@ let STATE = {}, HOTELS = {}, TRIPS = [], editing = null;
 /* ── GitHub API ─────────────────────────────── */
 async function gh(path, opt = {}) {
   const c = cfg();
-  const res = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}${path}`, {
-    ...opt,
-    headers: { "Accept": "application/vnd.github+json",
-               ...(c.token ? { "Authorization": `Bearer ${c.token}` } : {}),
-               ...(opt.headers || {}) },
-  });
+  if (location.protocol === "file:" || !/github\.io$/.test(location.hostname) && location.hostname !== "localhost")
+    console.warn("建議從 GitHub Pages 網址開啟本頁");
+  let res;
+  try {
+    res = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}${path}`, {
+      ...opt,
+      headers: { "Accept": "application/vnd.github+json",
+                 ...(c.token ? { "Authorization": `Bearer ${c.token}` } : {}),
+                 ...(opt.headers || {}) },
+    });
+  } catch (e) {
+    throw new Error(location.hostname.endsWith("github.io")
+      ? "連不到 GitHub：可能是網路（公司/學校網路）或廣告阻擋外掛擋住了 api.github.com"
+      : `連不到 GitHub：請改從 https://${c.owner.toLowerCase()}.github.io/${c.repo}/ 開啟這個 App`);
+  }
   if (!res.ok) {
     const msg = { 401: "金鑰無效或已過期", 403: "金鑰權限不足", 404: "找不到 repo 或檔案" }[res.status] || `錯誤 ${res.status}`;
     throw new Error(msg);
@@ -258,7 +269,7 @@ async function load() {
   const c = cfg();
   $("#banner").innerHTML = "";
   if (!c.token) {
-    $("#banner").innerHTML = `<div class="banner">還沒設定 GitHub 存取金鑰。點右上角 ⚙ 進入設定。</div>`;
+    $("#banner").innerHTML = `<div class="banner">還沒設定 GitHub 存取金鑰。點右上角齒輪圖示進入設定。</div>`;
     $("#sub").textContent = `${c.owner}/${c.repo}`;
   }
   $("#list").innerHTML = `<div class="empty">載入中…</div>`;
@@ -289,7 +300,7 @@ async function load() {
     TRIPS.sort((a, b) => (a.f["入住日"] || "").localeCompare(b.f["入住日"] || ""));
     render();
   } catch (e) {
-    $("#list").innerHTML = `<div class="banner">讀取失敗：${esc(e.message)}。請到 ⚙ 設定確認金鑰與 repo 名稱。</div>`;
+    $("#list").innerHTML = `<div class="banner">讀取失敗：${esc(e.message)}。請到設定（齒輪圖示）確認金鑰與 repo 名稱。</div>`;
   }
 }
 
@@ -475,7 +486,7 @@ $("#btnSettings").onclick = () => {
   openSheet("#setSheet");
 };
 $("#btnSaveSet").onclick = () => {
-  LS.set("token", $("#sToken").value.trim()); LS.set("owner", $("#sOwner").value.trim() || "Livi338");
+  LS.set("token", $("#sToken").value.replace(/[^\x21-\x7E]/g, "")); LS.set("owner", $("#sOwner").value.trim() || "Livi338");
   LS.set("repo", $("#sRepo").value.trim() || "toyoko-watch"); LS.set("wf", $("#sWf").value.trim() || "niigata.yml");
   closeSheets(); load();
 };
