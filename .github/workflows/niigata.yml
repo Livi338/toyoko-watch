@@ -2,7 +2,7 @@ name: niigata-watch
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # 每 15 分鐘
+    - cron: "7,22,37,52 * * * *"   # 每 15 分鐘，避開整點尖峰
   issues:
     types: [opened, edited, reopened]   # 新增或修改行程時馬上檢查一次
   workflow_dispatch:
