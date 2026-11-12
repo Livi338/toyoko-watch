@@ -49,6 +49,7 @@ ROOM_FILTERS = {
     "不限房型": ([], []),
 }
 
+CONFIG_VERSION = "2"     # 改了解析邏輯就加 1，所有 Issue 會重新確認並留言
 MAX_QUERIES = 60        # 所有行程加起來的查詢上限，避免單次執行跑太久
 STATE_FILE = Path("state_niigata.json")
 TIMEOUT_MS = 45_000
@@ -144,6 +145,7 @@ TRANS = str.maketrans({
     "橫": "横", "站": "駅", "驛": "駅", "濱": "浜", "瀉": "潟", "櫻": "桜",
     "廣": "広", "藏": "蔵", "澤": "沢", "邊": "辺", "國": "国", "關": "関",
     "帶": "帯", "條": "条", "號": "号", "團": "団", "實": "実", "濟": "済",
+    "內": "内", "惠": "恵", "黑": "黒", "髙": "高", "峯": "峰", "鄉": "郷",
     "Ａ": "A", "Ｂ": "B", "１": "1", "２": "2", "３": "3", "４": "4",
 })
 
@@ -154,21 +156,35 @@ def norm(s):
     return re.sub(r"[\s・·()（）「」]", "", s).upper()
 
 
-def load_hotel_list(page, state):
+def load_hotel_list(browser, state):
+    """回傳 {代碼: [日文名稱, 中文名稱, ...]}，兩種語言的寫法都能比對"""
     cache = state.get("_hotels", {})
-    if cache.get("date") == date.today().isoformat() and cache.get("list"):
+    if (cache.get("date") == date.today().isoformat() and cache.get("v") == 2
+            and cache.get("list")):
         return cache["list"]
-    page.goto(HOTEL_LIST_URL, wait_until="networkidle", timeout=TIMEOUT_MS)
-    pairs = page.eval_on_selector_all(
-        "a[href*='/search/detail/']",
-        "els => els.map(e => [e.getAttribute('href'), e.innerText.trim()])",
-    )
     hotels = {}
-    for href, text in pairs:
-        m = re.search(r"/search/detail/(\d{5})", href or "")
-        if m and text:
-            hotels[m.group(1)] = text.splitlines()[0].strip()
-    state["_hotels"] = {"date": date.today().isoformat(), "list": hotels}
+    for locale, url in (("ja-JP", HOTEL_LIST_URL),
+                        ("zh-TW", HOTEL_LIST_URL.replace(".com/", ".com/china/"))):
+        try:
+            ctx = browser.new_context(locale=locale)
+            pg = ctx.new_page()
+            pg.goto(url, wait_until="networkidle", timeout=TIMEOUT_MS)
+            pairs = pg.eval_on_selector_all(
+                "a[href*='/search/detail/']",
+                "els => els.map(e => [e.getAttribute('href'), e.innerText.trim()])",
+            )
+            ctx.close()
+        except Exception as e:
+            log(f"⚠️  飯店列表（{locale}）讀取失敗：{e}")
+            continue
+        for href, text in pairs:
+            m = re.search(r"/search/detail/(\d{5})", href or "")
+            if m and text:
+                name = text.splitlines()[0].strip()
+                names = hotels.setdefault(m.group(1), [])
+                if name not in names:
+                    names.append(name)
+    state["_hotels"] = {"date": date.today().isoformat(), "v": 2, "list": hotels}
     log(f"飯店列表：共 {len(hotels)} 間")
     return hotels
 
@@ -178,16 +194,17 @@ def resolve_hotel(query, hotel_list):
     q = query.strip().lstrip("-*• ").strip()
     if not q:
         return None, None, None
-    code = re.fullmatch(r"\d{5}", q)
-    if code:
+    if re.fullmatch(r"\d{5}", q):
         if q in hotel_list:
-            return q, hotel_list[q], None
+            return q, hotel_list[q][0], None
         return None, None, f"找不到代碼 `{q}`"
     nq = norm(q)
-    exact = [(c, n) for c, n in hotel_list.items() if norm(n) == nq]
+    exact = [(c, ns[0]) for c, ns in hotel_list.items()
+             if any(norm(n) == nq for n in ns)]
     if len(exact) == 1:
         return exact[0][0], exact[0][1], None
-    part = [(c, n) for c, n in hotel_list.items() if nq and nq in norm(n)]
+    part = [(c, ns[0]) for c, ns in hotel_list.items()
+            if nq and any(nq in norm(n) for n in ns)]
     if len(part) == 1:
         return part[0][0], part[0][1], None
     if part:
@@ -213,12 +230,17 @@ def build_trip(issue, hotel_list, today):
         errors.append("日期格式要是 YYYY-MM-DD，例如 2026-12-12")
         ci = co = None
 
-    hotels = {}
+    hotels, warnings = {}, []
     for line in (f.get("飯店（依志願排序）") or "").splitlines():
         cd, official, err = resolve_hotel(line, hotel_list)
+        if cd or err:
+            log(f"  #{issue['number']} 「{line.strip()}」→ {cd or '-'} {official or err}")
         if err:
             errors.append(err)
-        elif cd and cd not in hotels:
+        elif cd in hotels:
+            warnings.append(f"「{line.strip()}」對應到 {official}（`{cd}`），"
+                            f"跟前面重複，已略過。如果不是這間，請直接填代碼")
+        elif cd:
             hotels[cd] = official
     if not hotels and not errors:
         errors.append("至少要填一間飯店")
@@ -244,6 +266,7 @@ def build_trip(issue, hotel_list, today):
         "roomtype": roomtype,
         "min_streak": min_streak,
         "checkout": co,
+        "warnings": warnings,
     }, []
 
 
@@ -259,6 +282,8 @@ def describe(trip):
     for rank, (cd, n) in enumerate(trip["hotels"].items()):
         label = "⭐第一志願" if rank == 0 else f"備案{rank}"
         lines.append(f"  {rank + 1}. {n}（`{cd}`，{label}）")
+    if trip.get("warnings"):
+        lines += ["", "⚠️ **請確認：**"] + [f"- {w}" for w in trip["warnings"]]
     lines += ["", "有房時會發 Discord 通知。要修改請直接編輯這張 Issue，要停止請關閉它。"]
     return "\n".join(lines)
 
@@ -434,12 +459,12 @@ def main():
             ),
         ).new_page()
 
-        hotel_list = load_hotel_list(page, state) if issues else {}
+        hotel_list = load_hotel_list(browser, state) if issues else {}
         trips = []
 
         for issue in issues:
             num = str(issue["number"])
-            h = hashlib.sha1(issue["body"].encode()).hexdigest()
+            h = hashlib.sha1((CONFIG_VERSION + issue["body"]).encode()).hexdigest()
             trip, errors = build_trip(issue, hotel_list, today)
             is_new = hashes.get(num) != h
 
