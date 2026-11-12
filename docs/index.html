@@ -277,17 +277,23 @@ async function load() {
   }
   $("#list").innerHTML = `<div class="empty">載入中…</div>`;
   try {
-    const [issues, stateRaw, commits] = await Promise.all([
+    const [issues, stateRaw, runs] = await Promise.all([
       gh("/issues?state=open&per_page=100"),
       gh("/contents/state_niigata.json", { headers: { "Accept": "application/vnd.github.raw+json" } }).catch(() => ({})),
-      gh("/commits?path=state_niigata.json&per_page=1").catch(() => []),
+      gh(`/actions/workflows/${c.wf}/runs?per_page=10`).catch(() => null),
     ]);
     STATE = stateRaw || {};
     HOTELS = STATE._hotels?.list || {};
     $("#hotelNames").innerHTML = Object.values(HOTELS)
       .map(ns => `<option value="${esc(ns[0].replace(/^東[横橫]INN\s*/, ""))}">`).join("");
-    const last = commits[0]?.commit?.committer?.date;
-    $("#sub").textContent = last ? `最後檢查：${ago(last)}` : `${c.owner}/${c.repo}`;
+    const done = (runs?.workflow_runs || []).filter(r => r.status === "completed");
+    const running = (runs?.workflow_runs || []).some(r => r.status !== "completed");
+    const ok = done.find(r => r.conclusion === "success");
+    let sub = `${c.owner}/${c.repo}`;
+    if (ok) sub = `最後檢查：${ago(ok.updated_at)}`;
+    if (done[0] && done[0].conclusion === "failure") sub += "・⚠️ 最近一次執行失敗";
+    if (running) sub += "・檢查中…";
+    $("#sub").textContent = sub;
 
     const mine = issues.filter(i => !i.pull_request && i.user.login.toLowerCase() === c.owner.toLowerCase()
                                     && (i.body || "").includes("### 旅遊名稱"));
