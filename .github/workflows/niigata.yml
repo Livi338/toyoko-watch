@@ -2,7 +2,7 @@ name: niigata-watch
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # 每 30 分鐘
+    - cron: "*/15 * * * *"   # 每 15 分鐘
   workflow_dispatch:
     inputs:
       probe:
@@ -16,7 +16,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
