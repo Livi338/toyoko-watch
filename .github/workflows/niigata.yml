@@ -3,14 +3,6 @@ name: niigata-watch
 on:
   schedule:
     - cron: "*/15 * * * *"   # 每 15 分鐘
-  workflow_dispatch:
-    inputs:
-      probe:
-        description: "除錯模式：存截name: niigata-watch
-
-on:
-  schedule:
-    - cron: "*/15 * * * *"   # 每 15 分鐘
   issues:
     types: [opened, edited, reopened]   # 新增或修改行程時馬上檢查一次
   workflow_dispatch:
@@ -45,52 +37,6 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          if [[ "${{ inputs.probe }}" == "true" ]]; then
-            python check_niigata.py --probe
-          else
-            python check_niigata.py
-          fi
-      - name: Upload probe screenshots
-        if: ${{ inputs.probe == true }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: probe-screenshots
-          path: |
-            probe_*.png
-            probe_*.txt
-          retention-days: 3
-      - name: Persist state
-        if: ${{ inputs.probe != true }}
-        run: |
-          git pull --rebase --quiet || true
-          if [[ -n "$(git status --porcelain state_niigata.json)" ]]; then
-            git config user.name  "niigata-watch"
-            git config user.email "actions@github.com"
-            git add state_niigata.json
-            git commit -m "niigata state: $(date -u +%F\ %T) UTC"
-            git push || (git pull --rebase && git push)
-          fi圖供下載，不發通知"
-        type: boolean
-        default: false
-
-permissions:
-  contents: write
-
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - run: pip install playwright requests
-      - run: python -m playwright install --with-deps chromium
-      - name: Check availability
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           if [[ "${{ inputs.probe }}" == "true" ]]; then
             python check_niigata.py --probe
