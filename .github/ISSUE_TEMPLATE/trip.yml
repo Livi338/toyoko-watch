@@ -1,0 +1,80 @@
+name: 🏨 新增空房監控行程
+description: 填好送出就會開始監控；編輯這張 Issue 可修改設定，關閉就停止監控。
+title: "[監控] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        送出後幾分鐘內，機器人會在下方留言確認讀到的設定。
+        日期請用 **YYYY-MM-DD** 格式，例如 2026-12-12。
+  - type: input
+    id: name
+    attributes:
+      label: 旅遊名稱
+      description: 會顯示在 Discord 通知標題上
+      placeholder: 東京 12月
+    validations:
+      required: true
+  - type: input
+    id: checkin
+    attributes:
+      label: 入住日
+      placeholder: 2026-12-12
+    validations:
+      required: true
+  - type: input
+    id: checkout
+    attributes:
+      label: 退房日
+      placeholder: 2026-12-15
+    validations:
+      required: true
+  - type: textarea
+    id: hotels
+    attributes:
+      label: 飯店（依志願排序）
+      description: 一行一間，第一行是第一志願。可以直接打飯店名稱，也可以填 5 碼飯店代碼。
+      placeholder: |
+        東京駅八重洲北口
+        日本橋三越前A4
+        日本橋人形町
+    validations:
+      required: true
+  - type: dropdown
+    id: people
+    attributes:
+      label: 總人數
+      options: ["1", "2", "3", "4"]
+      default: 0
+    validations:
+      required: true
+  - type: dropdown
+    id: rooms
+    attributes:
+      label: 房間數
+      options: ["1", "2", "3"]
+      default: 0
+    validations:
+      required: true
+  - type: dropdown
+    id: roomtype
+    attributes:
+      label: 房型
+      options:
+        - 單人房（含經濟單人房）
+        - 單人房（不含經濟單人房）
+        - 不限房型
+      default: 0
+    validations:
+      required: true
+  - type: dropdown
+    id: minstreak
+    attributes:
+      label: 什麼時候通知
+      options:
+        - 任何一晚有房就通知
+        - 至少能連住 2 晚才通知
+        - 整段都能同一間才通知
+      default: 0
+    validations:
+      required: true
