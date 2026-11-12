@@ -64,6 +64,11 @@ SEARCH_URL = (
 SOLD_OUT_TEXT = "沒有空房"
 PRICE_RE = re.compile(r"(¥|￥|JPY)\s*[\d,]{3,}|[\d,]{3,}\s*(日圓|日元|円)")
 
+# 只算這些房型：房型名稱含有任一關鍵字才列入判斷
+# 「單人」會涵蓋 單人房（シングル）、經濟單人房（エコノミーシングル）等
+# 想連雙人房也算，改成 ROOM_KEYWORDS = [] 即可
+ROOM_KEYWORDS = ["單人"]
+
 STATE_FILE = Path("state_niigata.json")
 TIMEOUT_MS = 45_000
 JST = timezone(timedelta(hours=9))
@@ -112,13 +117,38 @@ def build_url(hotel_cd, checkin, people):
     )
 
 
+def room_types(text):
+    """從頁面文字找出房型標題（例：「經濟單人房」「單人房」「經濟雙人房」）。"""
+    found = []
+    for line in text.splitlines():
+        s = line.strip()
+        if (2 <= len(s) <= 12 and s.endswith("房") and SOLD_OUT_TEXT not in s
+                and not re.search(r"[，。、：；]", s) and s not in found):
+            found.append(s)
+    return found
+
+
 def classify(text):
-    """available / soldout / unknown"""
-    if PRICE_RE.search(text):
-        return "available"
-    if SOLD_OUT_TEXT in text:
-        return "soldout"
-    return "unknown"
+    """回傳 (available / soldout / unknown, 有房的目標房型清單)"""
+    if not ROOM_KEYWORDS:
+        if PRICE_RE.search(text):
+            return "available", []
+        if SOLD_OUT_TEXT in text:
+            return "soldout", []
+        return "unknown", []
+
+    targets = [t for t in room_types(text) if any(k in t for k in ROOM_KEYWORDS)]
+    if not targets:
+        return "unknown", []          # 連單人房的標題都找不到 → 版面可能變了
+    # 逐行比對，避免「單人房沒有空房」被「經濟單人房沒有空房」誤命中
+    lines = [s.strip() for s in text.splitlines()]
+    open_types = [t for t in targets
+                  if not any(s.startswith(f"{t}{SOLD_OUT_TEXT}") for s in lines)]
+    if open_types and PRICE_RE.search(text):
+        return "available", open_types
+    if not open_types:
+        return "soldout", []
+    return "unknown", []
 
 
 def streaks(avail_dates, trip_dates):
@@ -145,8 +175,9 @@ def md(d):
     return f"{x.month}/{x.day}"
 
 
-def summarize(trip, avail, people, today):
+def summarize(trip, avail, people, today, types_map=None):
     """avail: {hotel_cd: set(有房的入住日)} → (標題, 內文, 最長連住晚數)"""
+    types_map = types_map or {}
     dates = [d for d in trip["dates"] if date.fromisoformat(d) >= today]
     full, multi, single = [], [], []
     best = 0
@@ -160,8 +191,15 @@ def summarize(trip, avail, people, today):
             url = SEARCH_URL.format(hotel=cd, people=people, room=ROOMS,
                                     smoking=SMOKING, start=run[0], end=end)
             span = md(run[0]) if n == 1 else f"{md(run[0])}–{md(run[1])}"
+            run_dates = [d for d in dates if run[0] <= d <= run[1]]
+            kinds = []
+            for d in run_dates:
+                for t in types_map.get(f"{cd}:{d}", []):
+                    if t not in kinds:
+                        kinds.append(t)
+            kind_txt = f"\n　房型：{'、'.join(kinds)}" if kinds else ""
             line = (f"**{name.replace('東橫INN', '')}**（{label}）"
-                    f" {span}（{n} 晚）\n{url}")
+                    f" {span}（{n} 晚）{kind_txt}\n{url}")
             item = (-n, rank, line)   # 先比連住晚數，同晚數再比志願
             if n == len(dates):
                 full.append(item)
@@ -245,12 +283,14 @@ def main():
                     key = f"{hotel_cd}:{checkin}"
                     url = build_url(hotel_cd, checkin, people)
                     try:
-                        status = check_one(page, url, f"{hotel_cd}_{checkin}")
+                        status, open_types = check_one(page, url, f"{hotel_cd}_{checkin}")
                     except Exception as e:
                         log(f"❌ {name} {checkin}: {e}")
-                        status = "unknown"
+                        status, open_types = "unknown", []
 
-                    log(f"[{trip['name']}] {name} {checkin} 入住: {status}")
+                    extra = f"（{'、'.join(open_types)}）" if open_types else ""
+                    log(f"[{trip['name']}] {name} {checkin} 入住: {status}{extra}")
+                    state.setdefault("_types", {})[key] = open_types
 
                     if status == "available" and state.get(key) != "available":
                         changed.add(trip["name"])
@@ -273,7 +313,8 @@ def main():
                 ok = {d for d in trip["dates"] if state.get(f"{cd}:{d}") == "available"}
                 if ok:
                     avail[cd] = ok
-            title, body, best = summarize(trip, avail, trip.get("people", 1), today)
+            title, body, best = summarize(trip, avail, trip.get("people", 1), today,
+                                          state.get("_types", {}))
             if best >= trip.get("min_streak", 1):
                 color = 0x2ECC71 if title.startswith("🟢") else (
                     0xF1C40F if title.startswith("🟡") else 0x95A5A6)
